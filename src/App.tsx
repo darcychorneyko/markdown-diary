@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MarkdownEditor } from './components/editor/markdown-editor.js';
 import { MarkdownPreview } from './components/editor/markdown-preview.js';
+import { resolveWikiLink } from './lib/links/link-resolution.js';
 import { Shell } from './components/layout/shell.js';
 import { VaultTree } from './components/sidebar/vault-tree.js';
 import { AppStateProvider, useAppState } from './state/app-state.js';
@@ -72,6 +73,34 @@ function AppBody() {
     await window.vaultApi.saveNote(activeNote.path, draftContents);
   }
 
+  async function handlePreviewNavigate(target: string) {
+    const normalizedTreePaths = tree.flatMap((node) => {
+      if (node.kind === 'note') {
+        return [node.path];
+      }
+
+      const collect = (children: typeof node.children): string[] =>
+        children.flatMap((child) => (child.kind === 'note' ? [child.path] : collect(child.children)));
+
+      return collect(node.children);
+    });
+
+    if (target.startsWith('[[') && target.endsWith(']]')) {
+      const resolution = resolveWikiLink(target.slice(2, -2), normalizedTreePaths);
+      if (resolution.kind === 'resolved') {
+        await handleOpenNote(resolution.path);
+      }
+      return;
+    }
+
+    const nextPath = activeNote
+      ? new URL(target, `file:///${activeNote.path.replace(/\\/g, '/')}`).pathname.replace(/^\//, '')
+      : target;
+
+    const decodedPath = nextPath.replace(/\//g, '\\');
+    await handleOpenNote(decodedPath);
+  }
+
   return (
     <Shell
       sidebar={
@@ -103,7 +132,13 @@ function AppBody() {
           <div>Select a note</div>
         )
       }
-      preview={activeNote ? <MarkdownPreview value={draftContents} /> : <div>Preview unavailable</div>}
+      preview={
+        activeNote ? (
+          <MarkdownPreview value={draftContents} onNavigate={handlePreviewNavigate} />
+        ) : (
+          <div>Preview unavailable</div>
+        )
+      }
     />
   );
 }
