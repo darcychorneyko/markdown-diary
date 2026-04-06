@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { MarkdownEditor } from './components/editor/markdown-editor.js';
+import { MarkdownPreview } from './components/editor/markdown-preview.js';
 import { Shell } from './components/layout/shell.js';
 import { VaultTree } from './components/sidebar/vault-tree.js';
 import { AppStateProvider, useAppState } from './state/app-state.js';
 
 function AppBody() {
-  const { tree, vaultPath, setVault } = useAppState();
+  const { activeNote, draftContents, tree, vaultPath, setVault, openNote, updateDraft } =
+    useAppState();
   const [openVaultError, setOpenVaultError] = useState<string | null>(null);
 
   async function handleOpenVault() {
@@ -56,6 +59,19 @@ function AppBody() {
     }
   }
 
+  async function handleOpenNote(notePath: string) {
+    const note = await window.vaultApi.readNote(notePath);
+    openNote(note);
+  }
+
+  async function handleSave() {
+    if (!activeNote) {
+      return;
+    }
+
+    await window.vaultApi.saveNote(activeNote.path, draftContents);
+  }
+
   return (
     <Shell
       sidebar={
@@ -66,7 +82,7 @@ function AppBody() {
           {vaultPath && tree.length === 0 ? <p>No markdown notes found in this vault yet.</p> : null}
           <VaultTree
             nodes={tree}
-            onOpenNote={() => {}}
+            onOpenNote={handleOpenNote}
             onCreateNote={handleCreateNote}
             onCreateFolder={handleCreateFolder}
             onRenamePath={handleRenamePath}
@@ -74,8 +90,20 @@ function AppBody() {
           />
         </>
       }
-      editor={<div>Select a note</div>}
-      preview={<div>Preview unavailable</div>}
+      editor={
+        activeNote ? (
+          <>
+            <header>
+              <strong>{activeNote.name}</strong>
+              <button onClick={handleSave}>Save</button>
+            </header>
+            <MarkdownEditor value={draftContents} onChange={updateDraft} />
+          </>
+        ) : (
+          <div>Select a note</div>
+        )
+      }
+      preview={activeNote ? <MarkdownPreview value={draftContents} /> : <div>Preview unavailable</div>}
     />
   );
 }
