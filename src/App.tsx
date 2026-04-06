@@ -53,6 +53,8 @@ function AppBody() {
       sidebar={
         <>
           <button onClick={handleOpenVault}>Open Vault</button>
+          {vaultPath ? <p>{vaultPath}</p> : null}
+          {vaultPath && tree.length === 0 ? <p>No markdown notes found in this vault yet.</p> : null}
           <VaultTree
             nodes={tree}
             onOpenNote={() => {}}
