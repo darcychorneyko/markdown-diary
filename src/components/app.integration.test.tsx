@@ -163,3 +163,113 @@ test('loads a note into the editor and saves changes', async () => {
   expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
   expect(screen.getByText('Edited')).toBeInTheDocument();
 });
+
+test('clicking a rendered markdown link opens the linked note', async () => {
+  window.vaultApi = {
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [
+      { kind: 'note', name: 'start.md', path: 'C:/vault/start.md' },
+      { kind: 'note', name: 'target.md', path: 'C:/vault/target.md' }
+    ],
+    readNote: async (notePath: string) => {
+      if (notePath === 'C:/vault/start.md') {
+        return {
+          path: notePath,
+          name: 'start.md',
+          contents: '[Open target](target.md)',
+          updatedAtMs: 1
+        };
+      }
+
+      return {
+        path: notePath,
+        name: 'target.md',
+        contents: '# Target Note',
+        updatedAtMs: 2
+      };
+    },
+    saveNote: async () => {
+      throw new Error('unused');
+    },
+    createNote: async () => {
+      throw new Error('unused');
+    },
+    createFolder: async () => {
+      throw new Error('unused');
+    },
+    renamePath: async () => {
+      throw new Error('unused');
+    },
+    deletePath: async () => {
+      throw new Error('unused');
+    },
+    watchVault: async () => {
+      throw new Error('unused');
+    },
+    unwatchVault: async () => {
+      throw new Error('unused');
+    }
+  };
+
+  render(<App />);
+  await userEvent.click(screen.getByRole('button', { name: /open vault/i }));
+  await userEvent.click(await screen.findByRole('button', { name: 'start.md' }));
+  await userEvent.click(await screen.findByRole('link', { name: 'Open target' }));
+
+  expect(await screen.findByRole('heading', { name: 'Target Note' })).toBeInTheDocument();
+});
+
+test('clicking a rendered wiki link opens the linked note', async () => {
+  window.vaultApi = {
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [
+      { kind: 'note', name: 'start.md', path: 'C:/vault/start.md' },
+      { kind: 'note', name: 'Daily Note.md', path: 'C:/vault/Daily Note.md' }
+    ],
+    readNote: async (notePath: string) => {
+      if (notePath === 'C:/vault/start.md') {
+        return {
+          path: notePath,
+          name: 'start.md',
+          contents: 'Jump to [[Daily Note]]',
+          updatedAtMs: 1
+        };
+      }
+
+      return {
+        path: notePath,
+        name: 'Daily Note.md',
+        contents: '# Daily Note',
+        updatedAtMs: 2
+      };
+    },
+    saveNote: async () => {
+      throw new Error('unused');
+    },
+    createNote: async () => {
+      throw new Error('unused');
+    },
+    createFolder: async () => {
+      throw new Error('unused');
+    },
+    renamePath: async () => {
+      throw new Error('unused');
+    },
+    deletePath: async () => {
+      throw new Error('unused');
+    },
+    watchVault: async () => {
+      throw new Error('unused');
+    },
+    unwatchVault: async () => {
+      throw new Error('unused');
+    }
+  };
+
+  render(<App />);
+  await userEvent.click(screen.getByRole('button', { name: /open vault/i }));
+  await userEvent.click(await screen.findByRole('button', { name: 'start.md' }));
+  await userEvent.click(await screen.findByRole('link', { name: 'Daily Note' }));
+
+  expect(await screen.findByRole('heading', { name: 'Daily Note' })).toBeInTheDocument();
+});

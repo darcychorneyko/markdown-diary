@@ -85,8 +85,11 @@ function AppBody() {
       return collect(node.children);
     });
 
-    if (target.startsWith('[[') && target.endsWith(']]')) {
-      const resolution = resolveWikiLink(target.slice(2, -2), normalizedTreePaths);
+    if (target.startsWith('__wiki__/')) {
+      const resolution = resolveWikiLink(
+        decodeURIComponent(target.slice('__wiki__/'.length)),
+        normalizedTreePaths
+      );
       if (resolution.kind === 'resolved') {
         await handleOpenNote(resolution.path);
       }
