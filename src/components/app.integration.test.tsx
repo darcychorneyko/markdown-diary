@@ -77,6 +77,44 @@ test('restores the last used vault on startup', async () => {
   expect(await screen.findByRole('button', { name: 'welcome.md' })).toBeInTheDocument();
 });
 
+test('does not show an open-vault error when persistence fails after a successful open', async () => {
+  window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {
+      throw new Error('settings write failed');
+    },
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    readNote: async () => {
+      throw new Error('unused');
+    },
+    saveNote: async () => {
+      throw new Error('unused');
+    },
+    createNote: async () => {
+      throw new Error('unused');
+    },
+    createFolder: async () => {
+      throw new Error('unused');
+    },
+    renamePath: async () => {
+      throw new Error('unused');
+    },
+    deletePath: async () => {
+      throw new Error('unused');
+    },
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
+  };
+
+  render(<App />);
+  await userEvent.click(screen.getByRole('button', { name: /open vault/i }));
+
+  expect(await screen.findByRole('button', { name: 'welcome.md' })).toBeInTheDocument();
+  expect(screen.queryByText(/Failed to open the vault picker/i)).not.toBeInTheDocument();
+});
+
 test('shows the selected vault and an empty state when no markdown notes are found', async () => {
   window.vaultApi = {
     getLastVaultPath: async () => null,

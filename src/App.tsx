@@ -32,8 +32,11 @@ function AppBody() {
 
       const nextTree = await window.vaultApi.readVaultTree(nextVaultPath);
       setVault(nextVaultPath, nextTree);
-      await window.vaultApi.setLastVaultPath(nextVaultPath);
       setOpenVaultError(null);
+
+      void window.vaultApi.setLastVaultPath(nextVaultPath).catch(() => {
+        // Keep the vault open even if settings persistence fails.
+      });
     } catch (error) {
       const details = error instanceof Error ? `: ${error.message}` : '.';
       setOpenVaultError(`Failed to open the vault picker${details}`);
