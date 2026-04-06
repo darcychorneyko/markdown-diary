@@ -160,10 +160,6 @@ test('loads a note into the editor and saves changes', async () => {
   await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
   expect(saveNote).toHaveBeenCalledWith('C:/vault/welcome.md', '# Welcome\nEdited');
-  expect(
-    screen.getByText(
-      (content, element) =>
-        element?.tagName === 'PRE' && content.includes('# Welcome') && content.includes('Edited')
-    )
-  ).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
+  expect(screen.getByText('Edited')).toBeInTheDocument();
 });
