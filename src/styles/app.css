@@ -37,3 +37,10 @@ body {
 .preview {
   border-right: 0;
 }
+
+.conflict-dialog {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #f59e0b;
+  background: #fef3c7;
+}

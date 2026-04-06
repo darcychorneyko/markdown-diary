@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ConflictDialog } from './components/dialogs/conflict-dialog.js';
 import { MarkdownEditor } from './components/editor/markdown-editor.js';
 import { MarkdownPreview } from './components/editor/markdown-preview.js';
 import { resolveWikiLink } from './lib/links/link-resolution.js';
@@ -7,8 +8,19 @@ import { VaultTree } from './components/sidebar/vault-tree.js';
 import { AppStateProvider, useAppState } from './state/app-state.js';
 
 function AppBody() {
-  const { activeNote, draftContents, tree, vaultPath, setVault, openNote, updateDraft } =
-    useAppState();
+  const {
+    activeNote,
+    draftContents,
+    hasConflict,
+    tree,
+    vaultPath,
+    setVault,
+    openNote,
+    updateDraft,
+    markSaved,
+    markConflict,
+    clearConflict
+  } = useAppState();
   const [openVaultError, setOpenVaultError] = useState<string | null>(null);
 
   async function handleOpenVault() {
@@ -31,6 +43,41 @@ function AppBody() {
     const nextTree = await window.vaultApi.readVaultTree(rootPath);
     setVault(rootPath, nextTree);
   }
+
+  useEffect(() => {
+    if (!vaultPath) {
+      return;
+    }
+
+    void window.vaultApi.watchVault(vaultPath);
+
+    return () => {
+      void window.vaultApi.unwatchVault(vaultPath);
+    };
+  }, [vaultPath]);
+
+  useEffect(() => {
+    const unsubscribe = window.vaultApi.onVaultChanged(async (event) => {
+      if (vaultPath) {
+        await refreshTree(vaultPath);
+      }
+
+      if (!activeNote || event.path !== activeNote.path) {
+        return;
+      }
+
+      const isDirty = draftContents !== activeNote.contents;
+      if (isDirty) {
+        markConflict();
+        return;
+      }
+
+      const nextNote = await window.vaultApi.readNote(activeNote.path);
+      markSaved(nextNote);
+    });
+
+    return unsubscribe;
+  }, [activeNote, draftContents, markConflict, markSaved, setVault, vaultPath]);
 
   async function handleCreateNote(parentPath: string) {
     await window.vaultApi.createNote(parentPath, 'Untitled');
@@ -71,6 +118,23 @@ function AppBody() {
     }
 
     await window.vaultApi.saveNote(activeNote.path, draftContents);
+    markSaved({
+      ...activeNote,
+      contents: draftContents
+    });
+  }
+
+  async function handleReloadFromDisk() {
+    if (!activeNote) {
+      return;
+    }
+
+    const nextNote = await window.vaultApi.readNote(activeNote.path);
+    markSaved(nextNote);
+  }
+
+  function handleKeepMine() {
+    clearConflict();
   }
 
   async function handlePreviewNavigate(target: string) {
@@ -136,11 +200,16 @@ function AppBody() {
         )
       }
       preview={
-        activeNote ? (
-          <MarkdownPreview value={draftContents} onNavigate={handlePreviewNavigate} />
-        ) : (
-          <div>Preview unavailable</div>
-        )
+        <>
+          {activeNote ? (
+            <MarkdownPreview value={draftContents} onNavigate={handlePreviewNavigate} />
+          ) : (
+            <div>Preview unavailable</div>
+          )}
+          {hasConflict ? (
+            <ConflictDialog onReload={handleReloadFromDisk} onKeepMine={handleKeepMine} />
+          ) : null}
+        </>
       }
     />
   );

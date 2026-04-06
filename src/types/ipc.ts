@@ -1,4 +1,4 @@
-import type { NoteDocument, VaultNode } from '../lib/types.js';
+import type { NoteDocument, VaultChangeEvent, VaultNode } from '../lib/types.js';
 
 export type VaultApi = {
   chooseVault(): Promise<string | null>;
@@ -11,6 +11,7 @@ export type VaultApi = {
   deletePath(targetPath: string): Promise<void>;
   watchVault(rootPath: string): Promise<void>;
   unwatchVault(rootPath: string): Promise<void>;
+  onVaultChanged(listener: (event: VaultChangeEvent) => void): () => void;
 };
 
 declare global {

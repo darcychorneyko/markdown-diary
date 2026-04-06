@@ -13,10 +13,11 @@ describe('VaultApi shape', () => {
       'renamePath',
       'deletePath',
       'watchVault',
-      'unwatchVault'
+      'unwatchVault',
+      'onVaultChanged'
     ] satisfies Array<keyof VaultApi>;
 
-    expect(keys).toHaveLength(10);
+    expect(keys).toHaveLength(11);
   });
 
   it('includes the saveNote bridge in the contract', () => {

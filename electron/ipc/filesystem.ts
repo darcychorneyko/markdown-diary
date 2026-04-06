@@ -1,8 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import chokidar, { type FSWatcher } from 'chokidar';
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { buildVaultTree } from '../../src/lib/fs/vault-tree.js';
 import { buildNotePath, buildRenamedPath } from '../../src/lib/fs/file-operations.js';
+import type { VaultChangeEvent } from '../../src/lib/types.js';
+
+const watchers = new Map<string, FSWatcher>();
+
+function broadcastVaultChange(payload: VaultChangeEvent) {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send('vault:changed', payload);
+  }
+}
 
 async function walkMarkdownPaths(rootPath: string): Promise<string[]> {
   const entries = await fs.readdir(rootPath, { withFileTypes: true });
@@ -79,5 +89,35 @@ export function registerFilesystemIpc() {
 
   ipcMain.handle('vault:delete-path', async (_event, targetPath: string) => {
     await fs.rm(targetPath, { recursive: true, force: false });
+  });
+
+  ipcMain.handle('vault:watch', async (_event, rootPath: string) => {
+    if (watchers.has(rootPath)) {
+      return;
+    }
+
+    const watcher = chokidar.watch(rootPath, {
+      ignoreInitial: true,
+      depth: 10
+    });
+
+    watcher.on('all', (eventName, changedPath) => {
+      broadcastVaultChange({
+        eventName,
+        path: changedPath
+      });
+    });
+
+    watchers.set(rootPath, watcher);
+  });
+
+  ipcMain.handle('vault:unwatch', async (_event, rootPath: string) => {
+    const watcher = watchers.get(rootPath);
+    if (!watcher) {
+      return;
+    }
+
+    watchers.delete(rootPath);
+    await watcher.close();
   });
 }

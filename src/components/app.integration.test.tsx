@@ -30,12 +30,9 @@ test('opens a vault and renders note names in the sidebar', async () => {
     deletePath: async () => {
       throw new Error('unused');
     },
-    watchVault: async () => {
-      throw new Error('unused');
-    },
-    unwatchVault: async () => {
-      throw new Error('unused');
-    }
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
   };
 
   render(<App />);
@@ -66,12 +63,9 @@ test('shows the selected vault and an empty state when no markdown notes are fou
     deletePath: async () => {
       throw new Error('unused');
     },
-    watchVault: async () => {
-      throw new Error('unused');
-    },
-    unwatchVault: async () => {
-      throw new Error('unused');
-    }
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
   };
 
   render(<App />);
@@ -105,12 +99,9 @@ test('shows an error message when the vault picker request fails', async () => {
     deletePath: async () => {
       throw new Error('unused');
     },
-    watchVault: async () => {
-      throw new Error('unused');
-    },
-    unwatchVault: async () => {
-      throw new Error('unused');
-    }
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
   };
 
   render(<App />);
@@ -144,12 +135,9 @@ test('loads a note into the editor and saves changes', async () => {
     deletePath: async () => {
       throw new Error('unused');
     },
-    watchVault: async () => {
-      throw new Error('unused');
-    },
-    unwatchVault: async () => {
-      throw new Error('unused');
-    }
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
   };
 
   render(<App />);
@@ -203,12 +191,9 @@ test('clicking a rendered markdown link opens the linked note', async () => {
     deletePath: async () => {
       throw new Error('unused');
     },
-    watchVault: async () => {
-      throw new Error('unused');
-    },
-    unwatchVault: async () => {
-      throw new Error('unused');
-    }
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
   };
 
   render(<App />);
@@ -258,12 +243,9 @@ test('clicking a rendered wiki link opens the linked note', async () => {
     deletePath: async () => {
       throw new Error('unused');
     },
-    watchVault: async () => {
-      throw new Error('unused');
-    },
-    unwatchVault: async () => {
-      throw new Error('unused');
-    }
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
   };
 
   render(<App />);
@@ -272,4 +254,54 @@ test('clicking a rendered wiki link opens the linked note', async () => {
   await userEvent.click(await screen.findByRole('link', { name: 'Daily Note' }));
 
   expect(await screen.findByRole('heading', { name: 'Daily Note' })).toBeInTheDocument();
+});
+
+test('shows a conflict warning when the open note changes externally while dirty', async () => {
+  let vaultChangedListener:
+    | ((payload: { eventName: string; path: string }) => void)
+    | undefined;
+
+  window.vaultApi = {
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    readNote: async () => ({
+      path: 'C:/vault/welcome.md',
+      name: 'welcome.md',
+      contents: '# Welcome',
+      updatedAtMs: 1
+    }),
+    saveNote: async () => {
+      throw new Error('unused');
+    },
+    createNote: async () => {
+      throw new Error('unused');
+    },
+    createFolder: async () => {
+      throw new Error('unused');
+    },
+    renamePath: async () => {
+      throw new Error('unused');
+    },
+    deletePath: async () => {
+      throw new Error('unused');
+    },
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: (listener) => {
+      vaultChangedListener = listener;
+      return () => {
+        vaultChangedListener = undefined;
+      };
+    }
+  };
+
+  render(<App />);
+  await userEvent.click(screen.getByRole('button', { name: /open vault/i }));
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome.md' }));
+  await userEvent.type(await screen.findByRole('textbox'), '\nEdited');
+
+  vaultChangedListener?.({ eventName: 'change', path: 'C:/vault/welcome.md' });
+
+  expect(await screen.findByRole('dialog', { name: 'File changed on disk' })).toBeInTheDocument();
+  expect(screen.getByText('File changed on disk while you have unsaved edits.')).toBeInTheDocument();
 });

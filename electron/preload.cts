@@ -14,7 +14,18 @@ const vaultApi: VaultApi = {
     ipcRenderer.invoke('vault:rename-path', oldPath, newName),
   deletePath: (targetPath: string) => ipcRenderer.invoke('vault:delete-path', targetPath),
   watchVault: (rootPath: string) => ipcRenderer.invoke('vault:watch', rootPath),
-  unwatchVault: (rootPath: string) => ipcRenderer.invoke('vault:unwatch', rootPath)
+  unwatchVault: (rootPath: string) => ipcRenderer.invoke('vault:unwatch', rootPath),
+  onVaultChanged: (listener) => {
+    const wrappedListener = (_event: unknown, payload: Parameters<typeof listener>[0]) => {
+      listener(payload);
+    };
+
+    ipcRenderer.on('vault:changed', wrappedListener);
+
+    return () => {
+      ipcRenderer.off('vault:changed', wrappedListener);
+    };
+  }
 };
 
 contextBridge.exposeInMainWorld('vaultApi', vaultApi);

@@ -18,6 +18,11 @@ export type NoteDocument = {
   updatedAtMs: number;
 };
 
+export type VaultChangeEvent = {
+  eventName: string;
+  path: string;
+};
+
 export type LinkResolution =
   | { kind: 'resolved'; path: string }
   | { kind: 'missing'; label: string }
