@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
+import { registerFilesystemIpc } from './ipc/filesystem.js';
 
 const isDev = !app.isPackaged;
 
@@ -10,7 +11,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     webPreferences: {
-      preload: path.join(app.getAppPath(), 'dist-electron', 'preload.js'),
+      preload: path.join(app.getAppPath(), 'dist-electron', 'electron', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -24,7 +25,10 @@ function createWindow() {
   void mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'));
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerFilesystemIpc();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
