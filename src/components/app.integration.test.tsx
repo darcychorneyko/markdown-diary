@@ -80,3 +80,41 @@ test('shows the selected vault and an empty state when no markdown notes are fou
   expect(await screen.findByText('C:/empty-vault')).toBeInTheDocument();
   expect(screen.getByText('No markdown notes found in this vault yet.')).toBeInTheDocument();
 });
+
+test('shows an error message when the vault picker request fails', async () => {
+  window.vaultApi = {
+    chooseVault: async () => {
+      throw new Error('dialog failed');
+    },
+    readVaultTree: async () => [],
+    readNote: async () => {
+      throw new Error('unused');
+    },
+    saveNote: async () => {
+      throw new Error('unused');
+    },
+    createNote: async () => {
+      throw new Error('unused');
+    },
+    createFolder: async () => {
+      throw new Error('unused');
+    },
+    renamePath: async () => {
+      throw new Error('unused');
+    },
+    deletePath: async () => {
+      throw new Error('unused');
+    },
+    watchVault: async () => {
+      throw new Error('unused');
+    },
+    unwatchVault: async () => {
+      throw new Error('unused');
+    }
+  };
+
+  render(<App />);
+  await userEvent.click(screen.getByRole('button', { name: /open vault/i }));
+
+  expect(await screen.findByText('Failed to open the vault picker.')).toBeInTheDocument();
+});

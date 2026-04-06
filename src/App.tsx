@@ -1,18 +1,25 @@
+import { useState } from 'react';
 import { Shell } from './components/layout/shell.js';
 import { VaultTree } from './components/sidebar/vault-tree.js';
 import { AppStateProvider, useAppState } from './state/app-state.js';
 
 function AppBody() {
   const { tree, vaultPath, setVault } = useAppState();
+  const [openVaultError, setOpenVaultError] = useState<string | null>(null);
 
   async function handleOpenVault() {
-    const nextVaultPath = await window.vaultApi.chooseVault();
-    if (!nextVaultPath) {
-      return;
-    }
+    try {
+      const nextVaultPath = await window.vaultApi.chooseVault();
+      if (!nextVaultPath) {
+        return;
+      }
 
-    const nextTree = await window.vaultApi.readVaultTree(nextVaultPath);
-    setVault(nextVaultPath, nextTree);
+      const nextTree = await window.vaultApi.readVaultTree(nextVaultPath);
+      setVault(nextVaultPath, nextTree);
+      setOpenVaultError(null);
+    } catch {
+      setOpenVaultError('Failed to open the vault picker.');
+    }
   }
 
   async function refreshTree(rootPath: string) {
@@ -53,6 +60,7 @@ function AppBody() {
       sidebar={
         <>
           <button onClick={handleOpenVault}>Open Vault</button>
+          {openVaultError ? <p>{openVaultError}</p> : null}
           {vaultPath ? <p>{vaultPath}</p> : null}
           {vaultPath && tree.length === 0 ? <p>No markdown notes found in this vault yet.</p> : null}
           <VaultTree

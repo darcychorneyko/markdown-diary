@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { dialog, ipcMain } from 'electron';
+import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { buildVaultTree } from '../../src/lib/fs/vault-tree.js';
 import { buildNotePath, buildRenamedPath } from '../../src/lib/fs/file-operations.js';
 
@@ -26,9 +26,14 @@ async function walkMarkdownPaths(rootPath: string): Promise<string[]> {
 
 export function registerFilesystemIpc() {
   ipcMain.handle('vault:choose', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory']
-    });
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    const result = focusedWindow
+      ? await dialog.showOpenDialog(focusedWindow, {
+          properties: ['openDirectory']
+        })
+      : await dialog.showOpenDialog({
+          properties: ['openDirectory']
+        });
 
     return result.canceled ? null : result.filePaths[0];
   });
