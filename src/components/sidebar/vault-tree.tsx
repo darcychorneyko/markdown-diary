@@ -1,5 +1,13 @@
 import type { VaultNode } from '../../lib/types.js';
 
+function getNodeLabel(node: VaultNode) {
+  if (node.kind === 'note' && node.name.toLowerCase().endsWith('.md')) {
+    return node.name.slice(0, -3);
+  }
+
+  return node.name;
+}
+
 export function VaultTree({
   nodes,
   onOpenNote,
@@ -19,15 +27,7 @@ export function VaultTree({
     <ul className="tree-root">
       {nodes.map((node) => (
         <li key={node.path}>
-          <button onClick={() => node.kind === 'note' && onOpenNote(node.path)}>{node.name}</button>
-          <button onClick={() => onRenamePath(node.path)}>Rename</button>
-          <button onClick={() => onDeletePath(node.path)}>Delete</button>
-          {node.kind === 'folder' ? (
-            <>
-              <button onClick={() => onCreateNote(node.path)}>New Note</button>
-              <button onClick={() => onCreateFolder(node.path)}>New Folder</button>
-            </>
-          ) : null}
+          <button onClick={() => node.kind === 'note' && onOpenNote(node.path)}>{getNodeLabel(node)}</button>
         </li>
       ))}
     </ul>

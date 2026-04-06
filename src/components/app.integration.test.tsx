@@ -79,7 +79,21 @@ test('opens a vault and renders note names in the sidebar', async () => {
   render(<App />);
   await triggerOpenVaultCommand();
 
-  expect(await screen.findByText('welcome.md')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'welcome' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'welcome.md' })).not.toBeInTheDocument();
+});
+
+test('does not render inline explorer actions', async () => {
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 });
 
 test('restores the last used vault on startup', async () => {
@@ -90,7 +104,7 @@ test('restores the last used vault on startup', async () => {
 
   render(<App />);
 
-  expect(await screen.findByRole('button', { name: 'welcome.md' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'welcome' })).toBeInTheDocument();
 });
 
 test('does not show an open-vault error when persistence fails after a successful open', async () => {
@@ -105,7 +119,7 @@ test('does not show an open-vault error when persistence fails after a successfu
   render(<App />);
   await triggerOpenVaultCommand();
 
-  expect(await screen.findByRole('button', { name: 'welcome.md' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'welcome' })).toBeInTheDocument();
   expect(screen.queryByText(/Failed to open the vault picker/i)).not.toBeInTheDocument();
 });
 
@@ -151,7 +165,7 @@ test('loads a note into the editor and saves changes', async () => {
 
   render(<App />);
   await triggerOpenVaultCommand();
-  await userEvent.click(await screen.findByRole('button', { name: 'welcome.md' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
   const editor = await screen.findByRole('textbox');
   await userEvent.type(editor, '\nEdited');
   await userEvent.click(screen.getByRole('button', { name: /save/i }));
@@ -189,7 +203,7 @@ test('clicking a rendered markdown link opens the linked note', async () => {
 
   render(<App />);
   await triggerOpenVaultCommand();
-  await userEvent.click(await screen.findByRole('button', { name: 'start.md' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'start' }));
   await userEvent.click(await screen.findByRole('link', { name: 'Open target' }));
 
   expect(await screen.findByRole('heading', { name: 'Target Note' })).toBeInTheDocument();
@@ -223,7 +237,7 @@ test('clicking a rendered wiki link opens the linked note', async () => {
 
   render(<App />);
   await triggerOpenVaultCommand();
-  await userEvent.click(await screen.findByRole('button', { name: 'start.md' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'start' }));
   await userEvent.click(await screen.findByRole('link', { name: 'Daily Note' }));
 
   expect(await screen.findByRole('heading', { name: 'Daily Note' })).toBeInTheDocument();
@@ -253,7 +267,7 @@ test('shows a conflict warning when the open note changes externally while dirty
 
   render(<App />);
   await triggerOpenVaultCommand();
-  await userEvent.click(await screen.findByRole('button', { name: 'welcome.md' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
   await userEvent.type(await screen.findByRole('textbox'), '\nEdited');
 
   vaultChangedListener?.({ eventName: 'change', path: 'C:/vault/welcome.md' });
