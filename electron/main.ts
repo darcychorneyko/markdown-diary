@@ -1,9 +1,32 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import { registerFilesystemIpc } from './ipc/filesystem.js';
 import { registerSettingsIpc } from './settings.js';
+import type { MenuCommandEvent } from '../src/lib/types.js';
 
 const isDev = !app.isPackaged;
+
+function broadcastMenuCommand(payload: MenuCommandEvent) {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send('menu:command', payload);
+  }
+}
+
+function buildAppMenu() {
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Open Vault',
+          click: () => broadcastMenuCommand({ command: 'open-vault' })
+        }
+      ]
+    }
+  ]);
+
+  Menu.setApplicationMenu(menu);
+}
 
 function createWindow() {
   const preloadPath = path.join(app.getAppPath(), 'dist-electron', 'electron', 'preload.cjs');
@@ -30,6 +53,7 @@ function createWindow() {
 app.whenReady().then(() => {
   registerSettingsIpc();
   registerFilesystemIpc();
+  buildAppMenu();
   createWindow();
 });
 

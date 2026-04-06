@@ -69,6 +69,16 @@ function AppBody() {
     };
   }, [setVault]);
 
+  useEffect(() => {
+    const unsubscribe = window.vaultApi.onMenuCommand?.((event) => {
+      if (event.command === 'open-vault') {
+        void handleOpenVault();
+      }
+    });
+
+    return unsubscribe ?? (() => {});
+  }, [handleOpenVault]);
+
   async function refreshTree(rootPath: string) {
     const nextTree = await window.vaultApi.readVaultTree(rootPath);
     setVault(rootPath, nextTree);

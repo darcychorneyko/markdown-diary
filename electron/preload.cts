@@ -27,6 +27,17 @@ const vaultApi: VaultApi = {
     return () => {
       ipcRenderer.off('vault:changed', wrappedListener);
     };
+  },
+  onMenuCommand: (listener) => {
+    const wrappedListener = (_event: unknown, payload: Parameters<typeof listener>[0]) => {
+      listener(payload);
+    };
+
+    ipcRenderer.on('menu:command', wrappedListener);
+
+    return () => {
+      ipcRenderer.off('menu:command', wrappedListener);
+    };
   }
 };
 
