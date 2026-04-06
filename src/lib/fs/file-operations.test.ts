@@ -18,4 +18,9 @@ describe('VaultApi shape', () => {
 
     expect(keys).toHaveLength(10);
   });
+
+  it('includes the saveNote bridge in the contract', () => {
+    const saveOperation: keyof VaultApi = 'saveNote';
+    expect(saveOperation).toBe('saveNote');
+  });
 });

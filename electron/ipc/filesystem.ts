@@ -55,6 +55,10 @@ export function registerFilesystemIpc() {
     };
   });
 
+  ipcMain.handle('vault:save-note', async (_event, notePath: string, contents: string) => {
+    await fs.writeFile(notePath, contents, 'utf8');
+  });
+
   ipcMain.handle('vault:create-note', async (_event, parentPath: string, name: string) => {
     const nextPath = buildNotePath(parentPath, name);
     await fs.writeFile(nextPath, '', 'utf8');
