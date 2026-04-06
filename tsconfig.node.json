@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "outDir": "dist-electron",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node", "electron"]
+  },
+  "include": [
+    "electron/**/*.ts",
+    "electron/**/*.cts",
+    "src/types/ipc.ts",
+    "src/lib/types.ts",
+    "src/lib/fs/vault-tree.ts",
+    "src/lib/fs/file-operations.ts"
+  ]
+}
