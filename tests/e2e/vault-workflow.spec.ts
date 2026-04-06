@@ -71,7 +71,7 @@ test('opens a vault, edits a note, and saves it', async ({ page }) => {
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
-  await expect(page.getByText('Edited')).toBeVisible();
+  await expect(page.locator('.preview p')).toHaveText('Edited');
   await expect
     .poll(async () =>
       page.evaluate(() => (window as typeof window & { __savedNotes: Map<string, string> }).__savedNotes.get('C:/vault/welcome.md'))
