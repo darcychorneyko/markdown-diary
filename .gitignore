@@ -5,3 +5,4 @@ dist-electron/
 playwright-report/
 test-results/
 coverage/
+*.tsbuildinfo
