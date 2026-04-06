@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { VaultApi } from '../src/types/ipc.js';
 
 const vaultApi: VaultApi = {
+  getLastVaultPath: () => ipcRenderer.invoke('settings:get-last-vault'),
+  setLastVaultPath: (path: string | null) => ipcRenderer.invoke('settings:set-last-vault', path),
   chooseVault: () => ipcRenderer.invoke('vault:choose'),
   readVaultTree: (rootPath: string) => ipcRenderer.invoke('vault:tree', rootPath),
   readNote: (path: string) => ipcRenderer.invoke('vault:read-note', path),

@@ -32,12 +32,39 @@ function AppBody() {
 
       const nextTree = await window.vaultApi.readVaultTree(nextVaultPath);
       setVault(nextVaultPath, nextTree);
+      await window.vaultApi.setLastVaultPath(nextVaultPath);
       setOpenVaultError(null);
     } catch (error) {
       const details = error instanceof Error ? `: ${error.message}` : '.';
       setOpenVaultError(`Failed to open the vault picker${details}`);
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreLastVault() {
+      const savedVaultPath = await window.vaultApi.getLastVaultPath();
+      if (!savedVaultPath) {
+        return;
+      }
+
+      try {
+        const nextTree = await window.vaultApi.readVaultTree(savedVaultPath);
+        if (!cancelled) {
+          setVault(savedVaultPath, nextTree);
+        }
+      } catch {
+        // Ignore stale saved paths and start empty.
+      }
+    }
+
+    void restoreLastVault();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setVault]);
 
   async function refreshTree(rootPath: string) {
     const nextTree = await window.vaultApi.readVaultTree(rootPath);

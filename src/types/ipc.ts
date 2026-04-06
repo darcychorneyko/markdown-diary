@@ -1,6 +1,8 @@
 import type { NoteDocument, VaultChangeEvent, VaultNode } from '../lib/types.js';
 
 export type VaultApi = {
+  getLastVaultPath(): Promise<string | null>;
+  setLastVaultPath(path: string | null): Promise<void>;
   chooseVault(): Promise<string | null>;
   readVaultTree(rootPath: string): Promise<VaultNode[]>;
   readNote(path: string): Promise<NoteDocument>;

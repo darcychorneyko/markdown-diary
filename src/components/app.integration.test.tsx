@@ -10,6 +10,8 @@ afterEach(() => {
 
 test('opens a vault and renders note names in the sidebar', async () => {
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => 'C:/vault',
     readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
     readNote: async () => {
@@ -41,8 +43,44 @@ test('opens a vault and renders note names in the sidebar', async () => {
   expect(await screen.findByText('welcome.md')).toBeInTheDocument();
 });
 
+test('restores the last used vault on startup', async () => {
+  window.vaultApi = {
+    getLastVaultPath: async () => 'C:/vault',
+    setLastVaultPath: async () => {},
+    chooseVault: async () => null,
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    readNote: async () => {
+      throw new Error('unused');
+    },
+    saveNote: async () => {
+      throw new Error('unused');
+    },
+    createNote: async () => {
+      throw new Error('unused');
+    },
+    createFolder: async () => {
+      throw new Error('unused');
+    },
+    renamePath: async () => {
+      throw new Error('unused');
+    },
+    deletePath: async () => {
+      throw new Error('unused');
+    },
+    watchVault: async () => {},
+    unwatchVault: async () => {},
+    onVaultChanged: () => () => {}
+  };
+
+  render(<App />);
+
+  expect(await screen.findByRole('button', { name: 'welcome.md' })).toBeInTheDocument();
+});
+
 test('shows the selected vault and an empty state when no markdown notes are found', async () => {
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => 'C:/empty-vault',
     readVaultTree: async () => [],
     readNote: async () => {
@@ -77,6 +115,8 @@ test('shows the selected vault and an empty state when no markdown notes are fou
 
 test('shows an error message when the vault picker request fails', async () => {
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => {
       throw new Error('dialog failed');
     },
@@ -114,6 +154,8 @@ test('loads a note into the editor and saves changes', async () => {
   const saveNote = vi.fn();
 
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => 'C:/vault',
     readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
     readNote: async () => ({
@@ -154,6 +196,8 @@ test('loads a note into the editor and saves changes', async () => {
 
 test('clicking a rendered markdown link opens the linked note', async () => {
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => 'C:/vault',
     readVaultTree: async () => [
       { kind: 'note', name: 'start.md', path: 'C:/vault/start.md' },
@@ -206,6 +250,8 @@ test('clicking a rendered markdown link opens the linked note', async () => {
 
 test('clicking a rendered wiki link opens the linked note', async () => {
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => 'C:/vault',
     readVaultTree: async () => [
       { kind: 'note', name: 'start.md', path: 'C:/vault/start.md' },
@@ -262,6 +308,8 @@ test('shows a conflict warning when the open note changes externally while dirty
     | undefined;
 
   window.vaultApi = {
+    getLastVaultPath: async () => null,
+    setLastVaultPath: async () => {},
     chooseVault: async () => 'C:/vault',
     readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
     readNote: async () => ({

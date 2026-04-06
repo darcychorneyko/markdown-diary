@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import { registerFilesystemIpc } from './ipc/filesystem.js';
+import { registerSettingsIpc } from './settings.js';
 
 const isDev = !app.isPackaged;
 
@@ -27,6 +28,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerSettingsIpc();
   registerFilesystemIpc();
   createWindow();
 });
