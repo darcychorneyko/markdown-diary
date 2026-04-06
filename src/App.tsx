@@ -17,8 +17,9 @@ function AppBody() {
       const nextTree = await window.vaultApi.readVaultTree(nextVaultPath);
       setVault(nextVaultPath, nextTree);
       setOpenVaultError(null);
-    } catch {
-      setOpenVaultError('Failed to open the vault picker.');
+    } catch (error) {
+      const details = error instanceof Error ? `: ${error.message}` : '.';
+      setOpenVaultError(`Failed to open the vault picker${details}`);
     }
   }
 

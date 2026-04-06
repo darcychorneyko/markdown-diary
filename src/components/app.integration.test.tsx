@@ -116,5 +116,5 @@ test('shows an error message when the vault picker request fails', async () => {
   render(<App />);
   await userEvent.click(screen.getByRole('button', { name: /open vault/i }));
 
-  expect(await screen.findByText('Failed to open the vault picker.')).toBeInTheDocument();
+  expect(await screen.findByText('Failed to open the vault picker: dialog failed')).toBeInTheDocument();
 });
