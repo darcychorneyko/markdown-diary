@@ -212,7 +212,6 @@ function AppBody() {
     <Shell
       sidebar={
         <>
-          <button onClick={handleOpenVault}>Open Vault</button>
           {openVaultError ? <p>{openVaultError}</p> : null}
           {vaultPath ? <p>{vaultPath}</p> : null}
           {vaultPath && tree.length === 0 ? <p>No markdown notes found in this vault yet.</p> : null}
