@@ -10,6 +10,6 @@ describe('dev script', () => {
     };
 
     expect(packageJson.scripts.dev).toContain('dist-electron/electron/main.js');
-    expect(packageJson.scripts.dev).toContain('dist-electron/electron/preload.js');
+    expect(packageJson.scripts.dev).toContain('dist-electron/electron/preload.cjs');
   });
 });

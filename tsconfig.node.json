@@ -11,6 +11,7 @@
   },
   "include": [
     "electron/**/*.ts",
+    "electron/**/*.cts",
     "src/types/ipc.ts",
     "src/lib/types.ts",
     "src/lib/fs/vault-tree.ts",

@@ -5,13 +5,14 @@ import { registerFilesystemIpc } from './ipc/filesystem.js';
 const isDev = !app.isPackaged;
 
 function createWindow() {
+  const preloadPath = path.join(app.getAppPath(), 'dist-electron', 'electron', 'preload.cjs');
   const mainWindow = new BrowserWindow({
     width: 1440,
     height: 960,
     minWidth: 1100,
     minHeight: 700,
     webPreferences: {
-      preload: path.join(app.getAppPath(), 'dist-electron', 'electron', 'preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false
     }
