@@ -574,6 +574,27 @@ test('loads a note into the editor and saves changes', async () => {
   expect(screen.getByText('Edited')).toBeInTheDocument();
 });
 
+test('renders the editor with fill-pane layout hooks when a note is open', async () => {
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    readNote: async () => ({
+      path: 'C:/vault/welcome.md',
+      name: 'welcome.md',
+      contents: '# Welcome',
+      updatedAtMs: 1
+    })
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
+
+  expect(screen.getByRole('textbox')).toHaveClass('markdown-editor');
+  expect(screen.getByRole('textbox').closest('.editor-pane')).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Save' }).closest('.editor-header')).not.toBeNull();
+});
+
 test('clicking a rendered markdown link opens the linked note', async () => {
   window.vaultApi = createVaultApi({
     chooseVault: async () => 'C:/vault',

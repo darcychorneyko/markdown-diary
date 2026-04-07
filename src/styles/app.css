@@ -34,8 +34,37 @@ body {
   background: #f9fafb;
 }
 
+.editor,
+.preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .preview {
   border-right: 0;
+}
+
+.editor-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.markdown-editor {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  resize: none;
 }
 
 .conflict-dialog {

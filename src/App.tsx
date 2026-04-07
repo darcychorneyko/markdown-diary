@@ -354,13 +354,13 @@ function AppBody() {
       }
       editor={
         activeNote ? (
-          <>
-            <header>
+          <div className="editor-pane">
+            <header className="editor-header">
               <strong>{activeNote.name}</strong>
               <button onClick={handleSave}>Save</button>
             </header>
             <MarkdownEditor value={draftContents} onChange={updateDraft} />
-          </>
+          </div>
         ) : (
           <div>Select a note</div>
         )

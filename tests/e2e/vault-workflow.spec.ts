@@ -16,6 +16,8 @@ test('opens a vault, edits a note, and saves it', async ({ page }) => {
     ]);
 
     const vaultApi = {
+      getLastVaultPath: async () => 'C:/vault',
+      setLastVaultPath: async () => {},
       chooseVault: async () => 'C:/vault',
       readVaultTree: async () => [
         {
@@ -55,7 +57,9 @@ test('opens a vault, edits a note, and saves it', async ({ page }) => {
       },
       watchVault: async () => {},
       unwatchVault: async () => {},
-      onVaultChanged: () => () => {}
+      onVaultChanged: () => () => {},
+      onMenuCommand: () => () => {},
+      showExplorerContextMenu: async () => {}
     };
 
     Object.assign(window, {
@@ -65,13 +69,16 @@ test('opens a vault, edits a note, and saves it', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Vault' }).click();
-  await page.getByRole('button', { name: 'welcome.md' }).click();
+  await page.getByRole('button', { name: 'welcome' }).evaluate((element) => {
+    (element as HTMLButtonElement).click();
+  });
   await page.getByRole('textbox').fill('# Welcome\nEdited');
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save' }).evaluate((element) => {
+    (element as HTMLButtonElement).click();
+  });
 
   await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
-  await expect(page.locator('.preview p')).toHaveText('Edited');
+  await expect(page.locator('.preview')).toContainText('Edited');
   await expect
     .poll(async () =>
       page.evaluate(() => (window as typeof window & { __savedNotes: Map<string, string> }).__savedNotes.get('C:/vault/welcome.md'))

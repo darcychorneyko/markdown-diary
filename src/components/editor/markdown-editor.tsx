@@ -5,5 +5,12 @@ export function MarkdownEditor({
   value: string;
   onChange(value: string): void;
 }) {
-  return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={20} />;
+  return (
+    <textarea
+      className="markdown-editor"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      rows={20}
+    />
+  );
 }
