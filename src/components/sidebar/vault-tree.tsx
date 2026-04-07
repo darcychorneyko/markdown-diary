@@ -1,4 +1,4 @@
-import type { VaultNode } from '../../lib/types.js';
+import type { ExplorerContextMenuRequest, VaultNode } from '../../lib/types.js';
 
 function getNodeLabel(node: VaultNode) {
   if (node.kind === 'note' && node.name.toLowerCase().endsWith('.md')) {
@@ -11,23 +11,28 @@ function getNodeLabel(node: VaultNode) {
 export function VaultTree({
   nodes,
   onOpenNote,
-  onCreateNote,
-  onCreateFolder,
-  onRenamePath,
-  onDeletePath
+  onOpenContextMenu
 }: {
   nodes: VaultNode[];
   onOpenNote(path: string): void;
-  onCreateNote(parentPath: string): void;
-  onCreateFolder(parentPath: string): void;
-  onRenamePath(targetPath: string): void;
-  onDeletePath(targetPath: string): void;
+  onOpenContextMenu(request: ExplorerContextMenuRequest): void;
 }) {
   return (
     <ul className="tree-root">
       {nodes.map((node) => (
         <li key={node.path}>
-          <button onClick={() => node.kind === 'note' && onOpenNote(node.path)}>{getNodeLabel(node)}</button>
+          <button
+            onClick={() => node.kind === 'note' && onOpenNote(node.path)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              onOpenContextMenu({
+                kind: node.kind,
+                targetPath: node.path
+              });
+            }}
+          >
+            {getNodeLabel(node)}
+          </button>
         </li>
       ))}
     </ul>

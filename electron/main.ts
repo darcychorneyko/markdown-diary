@@ -1,8 +1,8 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'node:path';
 import { registerFilesystemIpc } from './ipc/filesystem.js';
 import { registerSettingsIpc } from './settings.js';
-import type { MenuCommandEvent } from '../src/lib/types.js';
+import type { ExplorerContextMenuRequest, MenuCommandEvent } from '../src/lib/types.js';
 
 const isDev = !app.isPackaged;
 
@@ -58,6 +58,68 @@ function buildAppMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+function buildExplorerContextMenuTemplate(request: ExplorerContextMenuRequest) {
+  if (request.kind === 'vault-root') {
+    return [
+      {
+        label: 'New Note',
+        click: () => broadcastMenuCommand({ command: 'new-note', targetPath: request.targetPath })
+      },
+      {
+        label: 'New Folder',
+        click: () => broadcastMenuCommand({ command: 'new-folder', targetPath: request.targetPath })
+      }
+    ];
+  }
+
+  if (request.kind === 'folder') {
+    return [
+      {
+        label: 'New Note',
+        click: () => broadcastMenuCommand({ command: 'new-note', targetPath: request.targetPath })
+      },
+      {
+        label: 'New Folder',
+        click: () => broadcastMenuCommand({ command: 'new-folder', targetPath: request.targetPath })
+      },
+      {
+        label: 'Rename',
+        click: () => broadcastMenuCommand({ command: 'rename-path', targetPath: request.targetPath })
+      },
+      {
+        label: 'Delete',
+        click: () => broadcastMenuCommand({ command: 'delete-path', targetPath: request.targetPath })
+      }
+    ];
+  }
+
+  return [
+    {
+      label: 'Rename',
+      click: () => broadcastMenuCommand({ command: 'rename-path', targetPath: request.targetPath })
+    },
+    {
+      label: 'Delete',
+      click: () => broadcastMenuCommand({ command: 'delete-path', targetPath: request.targetPath })
+    }
+  ];
+}
+
+function registerMenuIpc() {
+  ipcMain.handle('menu:show-explorer-context', (event, request: ExplorerContextMenuRequest) => {
+    const menu = Menu.buildFromTemplate(buildExplorerContextMenuTemplate(request));
+    const window = BrowserWindow.fromWebContents(event.sender);
+
+    if (!window) {
+      return;
+    }
+
+    menu.popup({
+      window
+    });
+  });
+}
+
 function createWindow() {
   const preloadPath = path.join(app.getAppPath(), 'dist-electron', 'electron', 'preload.cjs');
   const mainWindow = new BrowserWindow({
@@ -83,6 +145,7 @@ function createWindow() {
 app.whenReady().then(() => {
   registerSettingsIpc();
   registerFilesystemIpc();
+  registerMenuIpc();
   buildAppMenu();
   createWindow();
 });

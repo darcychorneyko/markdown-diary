@@ -96,6 +96,52 @@ test('does not render inline explorer actions', async () => {
   expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 });
 
+test('requests a native context menu when right-clicking a note', async () => {
+  const showExplorerContextMenu = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    showExplorerContextMenu
+  });
+
+  render(<App />);
+  await userEvent.pointer([
+    {
+      target: await screen.findByRole('button', { name: 'welcome' }),
+      keys: '[MouseRight]'
+    }
+  ]);
+
+  expect(showExplorerContextMenu).toHaveBeenCalledWith({
+    kind: 'note',
+    targetPath: 'C:/vault/welcome.md'
+  });
+});
+
+test('requests a native context menu when right-clicking the vault root', async () => {
+  const showExplorerContextMenu = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    showExplorerContextMenu
+  });
+
+  render(<App />);
+  await userEvent.pointer([
+    {
+      target: await screen.findByRole('button', { name: 'vault' }),
+      keys: '[MouseRight]'
+    }
+  ]);
+
+  expect(showExplorerContextMenu).toHaveBeenCalledWith({
+    kind: 'vault-root',
+    targetPath: 'C:/vault'
+  });
+});
+
 test('restores the last used vault on startup', async () => {
   window.vaultApi = createVaultApi({
     getLastVaultPath: async () => 'C:/vault',
@@ -146,6 +192,29 @@ test('shows an error message when the vault picker request fails', async () => {
   await triggerOpenVaultCommand();
 
   expect(await screen.findByText('Failed to open the vault picker: dialog failed')).toBeInTheDocument();
+});
+
+test('executes a delete action from an explorer menu command', async () => {
+  const deletePath = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    deletePath
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  await waitFor(() => {
+    expect(menuCommandListener).toBeDefined();
+  });
+
+  menuCommandListener?.({ command: 'delete-path', targetPath: 'C:/vault/welcome.md' });
+
+  await waitFor(() => {
+    expect(deletePath).toHaveBeenCalledWith('C:/vault/welcome.md');
+  });
 });
 
 test('loads a note into the editor and saves changes', async () => {

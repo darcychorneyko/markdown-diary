@@ -23,9 +23,26 @@ export type VaultChangeEvent = {
   path: string;
 };
 
-export type MenuCommandEvent = {
-  command: 'open-vault';
-};
+export type MenuCommandEvent =
+  | {
+      command: 'open-vault';
+    }
+  | {
+      command: 'new-note';
+      targetPath: string;
+    }
+  | {
+      command: 'new-folder';
+      targetPath: string;
+    }
+  | {
+      command: 'rename-path';
+      targetPath: string;
+    }
+  | {
+      command: 'delete-path';
+      targetPath: string;
+    };
 
 export type ExplorerContextMenuRequest =
   | { kind: 'vault-root'; targetPath: string }

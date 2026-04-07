@@ -1,4 +1,10 @@
-import type { MenuCommandEvent, NoteDocument, VaultChangeEvent, VaultNode } from '../lib/types.js';
+import type {
+  ExplorerContextMenuRequest,
+  MenuCommandEvent,
+  NoteDocument,
+  VaultChangeEvent,
+  VaultNode
+} from '../lib/types.js';
 
 export type VaultApi = {
   getLastVaultPath(): Promise<string | null>;
@@ -15,6 +21,7 @@ export type VaultApi = {
   unwatchVault(rootPath: string): Promise<void>;
   onVaultChanged(listener: (event: VaultChangeEvent) => void): () => void;
   onMenuCommand(listener: (event: MenuCommandEvent) => void): () => void;
+  showExplorerContextMenu(request: ExplorerContextMenuRequest): Promise<void>;
 };
 
 declare global {

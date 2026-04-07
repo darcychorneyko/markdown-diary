@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ExplorerContextMenuRequest } from './lib/types.js';
 import { ConflictDialog } from './components/dialogs/conflict-dialog.js';
 import { MarkdownEditor } from './components/editor/markdown-editor.js';
 import { MarkdownPreview } from './components/editor/markdown-preview.js';
@@ -70,14 +71,34 @@ function AppBody() {
   }, [setVault]);
 
   useEffect(() => {
-    const unsubscribe = window.vaultApi.onMenuCommand?.((event) => {
+    const unsubscribe = window.vaultApi.onMenuCommand((event) => {
       if (event.command === 'open-vault') {
         void handleOpenVault();
+        return;
+      }
+
+      if (event.command === 'new-note') {
+        void handleCreateNote(event.targetPath);
+        return;
+      }
+
+      if (event.command === 'new-folder') {
+        void handleCreateFolder(event.targetPath);
+        return;
+      }
+
+      if (event.command === 'rename-path') {
+        void handleRenamePath(event.targetPath);
+        return;
+      }
+
+      if (event.command === 'delete-path') {
+        void handleDeletePath(event.targetPath);
       }
     });
 
-    return unsubscribe ?? (() => {});
-  }, [handleOpenVault]);
+    return unsubscribe;
+  }, [handleDeletePath, handleCreateFolder, handleCreateNote, handleOpenVault, handleRenamePath]);
 
   async function refreshTree(rootPath: string) {
     const nextTree = await window.vaultApi.readVaultTree(rootPath);
@@ -208,21 +229,36 @@ function AppBody() {
     await handleOpenNote(decodedPath);
   }
 
+  function handleOpenContextMenu(request: ExplorerContextMenuRequest) {
+    void window.vaultApi.showExplorerContextMenu(request);
+  }
+
+  function getVaultLabel(rootPath: string) {
+    return rootPath.split(/[\\/]/).filter(Boolean).at(-1) ?? rootPath;
+  }
+
   return (
     <Shell
       sidebar={
         <>
           {openVaultError ? <p>{openVaultError}</p> : null}
+          {vaultPath ? (
+            <button
+              className="vault-root-button"
+              onContextMenu={(event) => {
+                event.preventDefault();
+                handleOpenContextMenu({
+                  kind: 'vault-root',
+                  targetPath: vaultPath
+                });
+              }}
+            >
+              {getVaultLabel(vaultPath)}
+            </button>
+          ) : null}
           {vaultPath ? <p>{vaultPath}</p> : null}
           {vaultPath && tree.length === 0 ? <p>No markdown notes found in this vault yet.</p> : null}
-          <VaultTree
-            nodes={tree}
-            onOpenNote={handleOpenNote}
-            onCreateNote={handleCreateNote}
-            onCreateFolder={handleCreateFolder}
-            onRenamePath={handleRenamePath}
-            onDeletePath={handleDeletePath}
-          />
+          <VaultTree nodes={tree} onOpenNote={handleOpenNote} onOpenContextMenu={handleOpenContextMenu} />
         </>
       }
       editor={

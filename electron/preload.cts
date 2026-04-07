@@ -38,7 +38,8 @@ const vaultApi: VaultApi = {
     return () => {
       ipcRenderer.off('menu:command', wrappedListener);
     };
-  }
+  },
+  showExplorerContextMenu: (request) => ipcRenderer.invoke('menu:show-explorer-context', request)
 };
 
 contextBridge.exposeInMainWorld('vaultApi', vaultApi);
