@@ -260,6 +260,7 @@ test('opens a rename prompt for a note and preserves the markdown extension on s
 
   const dialog = await screen.findByRole('dialog', { name: 'Rename' });
   const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  expect(input).toHaveValue('welcome');
   await userEvent.clear(input);
   await userEvent.type(input, 'Renamed');
   await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
@@ -322,6 +323,139 @@ test('clears the active note when the open note is deleted from the explorer men
   });
   expect(await screen.findByText('Select a note')).toBeInTheDocument();
   expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
+});
+
+test('clears the active note when deleting a parent folder of the open note', async () => {
+  const deletePath = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/Projects/welcome.md' }],
+    readNote: async () => ({
+      path: 'C:/vault/Projects/welcome.md',
+      name: 'welcome.md',
+      contents: '# Welcome',
+      updatedAtMs: 1
+    }),
+    deletePath
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
+
+  menuCommandListener?.({ command: 'delete-path', targetPath: 'C:/vault/Projects' });
+
+  await waitFor(() => {
+    expect(deletePath).toHaveBeenCalledWith('C:/vault/Projects');
+  });
+  expect(await screen.findByText('Select a note')).toBeInTheDocument();
+  expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
+});
+
+test('renaming the open note updates the active note path and name', async () => {
+  const renamePath = vi.fn(async () => 'C:/vault/Renamed.md');
+  const saveNote = vi.fn();
+  let treeReadCount = 0;
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => {
+      treeReadCount += 1;
+      return treeReadCount > 1
+        ? [{ kind: 'note', name: 'Renamed.md', path: 'C:/vault/Renamed.md' }]
+        : [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }];
+    },
+    readNote: async () => ({
+      path: 'C:/vault/welcome.md',
+      name: 'welcome.md',
+      contents: '# Welcome',
+      updatedAtMs: 1
+    }),
+    renamePath,
+    saveNote
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
+
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md' });
+
+  const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+  const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Renamed');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
+  expect(await screen.findByText('Renamed.md')).toBeInTheDocument();
+  await userEvent.type(await screen.findByRole('textbox'), '\nEdited');
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+  expect(saveNote).toHaveBeenCalledWith('C:/vault/Renamed.md', '# Welcome\nEdited');
+});
+
+test('renaming a parent folder updates the active note path', async () => {
+  const renamePath = vi.fn(async () => 'C:/vault/Archive');
+  const saveNote = vi.fn();
+  let treeReadCount = 0;
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => {
+      treeReadCount += 1;
+      return treeReadCount > 1
+        ? [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/Archive/welcome.md' }]
+        : [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/Projects/welcome.md' }];
+    },
+    readNote: async () => ({
+      path: 'C:/vault/Projects/welcome.md',
+      name: 'welcome.md',
+      contents: '# Welcome',
+      updatedAtMs: 1
+    }),
+    renamePath,
+    saveNote
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
+
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects' });
+
+  const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+  const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Archive');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
+  await userEvent.type(await screen.findByRole('textbox'), '\nEdited');
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+  expect(saveNote).toHaveBeenCalledWith('C:/vault/Archive/welcome.md', '# Welcome\nEdited');
+});
+
+test('switching prompts resets the dialog input to the new prompt values', async () => {
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  menuCommandListener?.({ command: 'new-note', targetPath: 'C:/vault' });
+
+  const firstDialog = await screen.findByRole('dialog', { name: 'New Note' });
+  const firstInput = within(firstDialog).getByRole('textbox', { name: 'Name' });
+  await userEvent.clear(firstInput);
+  await userEvent.type(firstInput, 'Draft Name');
+
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md' });
+
+  const secondDialog = await screen.findByRole('dialog', { name: 'Rename' });
+  expect(within(secondDialog).getByRole('textbox', { name: 'Name' })).toHaveValue('welcome');
 });
 
 test('loads a note into the editor and saves changes', async () => {

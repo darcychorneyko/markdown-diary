@@ -14,6 +14,7 @@ type AppStateValue = {
   markConflict(): void;
   clearConflict(): void;
   clearActiveNote(): void;
+  moveActiveNote(nextPath: string): void;
 };
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -58,6 +59,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setActiveNote(null);
       setDraftContents('');
       setHasConflict(false);
+    },
+    moveActiveNote(nextPath) {
+      setActiveNote((currentNote) => {
+        if (!currentNote) {
+          return null;
+        }
+
+        return {
+          ...currentNote,
+          path: nextPath,
+          name: nextPath.split(/[\\/]/).filter(Boolean).at(-1) ?? nextPath
+        };
+      });
     }
   };
 

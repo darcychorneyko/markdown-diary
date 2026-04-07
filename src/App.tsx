@@ -21,7 +21,46 @@ function normalizeNoteName(name: string) {
 }
 
 function basenameForPrompt(targetPath: string) {
-  return targetPath.split(/[\\/]/).filter(Boolean).at(-1) ?? targetPath;
+  const basename = targetPath.split(/[\\/]/).filter(Boolean).at(-1) ?? targetPath;
+
+  return basename.toLowerCase().endsWith('.md') ? basename.slice(0, -3) : basename;
+}
+
+function isMarkdownPath(targetPath: string) {
+  return targetPath.toLowerCase().endsWith('.md');
+}
+
+function normalizePathForComparison(targetPath: string) {
+  return targetPath.replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
+function isSamePathOrChildPath(targetPath: string, candidatePath: string) {
+  const normalizedTargetPath = normalizePathForComparison(targetPath);
+  const normalizedCandidatePath = normalizePathForComparison(candidatePath);
+
+  return (
+    normalizedCandidatePath === normalizedTargetPath ||
+    normalizedCandidatePath.startsWith(`${normalizedTargetPath}/`)
+  );
+}
+
+function replacePathPrefix(targetPath: string, nextPath: string, candidatePath: string) {
+  const normalizedTargetPath = normalizePathForComparison(targetPath);
+  const normalizedNextPath = normalizePathForComparison(nextPath);
+  const normalizedCandidatePath = normalizePathForComparison(candidatePath);
+
+  if (normalizedCandidatePath === normalizedTargetPath) {
+    return nextPath;
+  }
+
+  if (!normalizedCandidatePath.startsWith(`${normalizedTargetPath}/`)) {
+    return candidatePath;
+  }
+
+  const suffix = normalizedCandidatePath.slice(normalizedTargetPath.length);
+  const replacedPath = `${normalizedNextPath}${suffix}`;
+
+  return candidatePath.includes('\\') ? replacedPath.replace(/\//g, '\\') : replacedPath;
 }
 
 function AppBody() {
@@ -37,7 +76,8 @@ function AppBody() {
     markSaved,
     markConflict,
     clearConflict,
-    clearActiveNote
+    clearActiveNote,
+    moveActiveNote
   } = useAppState();
   const [openVaultError, setOpenVaultError] = useState<string | null>(null);
   const [promptState, setPromptState] = useState<PromptState>(null);
@@ -112,7 +152,7 @@ function AppBody() {
       if (event.command === 'rename-path') {
         const initialValue = basenameForPrompt(event.targetPath);
         setPromptState({
-          kind: initialValue.toLowerCase().endsWith('.md') ? 'rename-note' : 'rename-folder',
+          kind: isMarkdownPath(event.targetPath) ? 'rename-note' : 'rename-folder',
           targetPath: event.targetPath,
           initialValue
         });
@@ -169,7 +209,7 @@ function AppBody() {
 
   async function handleDeletePath(targetPath: string) {
     await window.vaultApi.deletePath(targetPath);
-    if (activeNote?.path === targetPath) {
+    if (activeNote && isSamePathOrChildPath(targetPath, activeNote.path)) {
       clearActiveNote();
     }
     if (vaultPath) {
@@ -255,10 +295,15 @@ function AppBody() {
       await window.vaultApi.createNote(promptState.targetPath, normalizeNoteName(value));
     } else if (promptState.kind === 'new-folder') {
       await window.vaultApi.createFolder(promptState.targetPath, value);
-    } else if (promptState.kind === 'rename-note') {
-      await window.vaultApi.renamePath(promptState.targetPath, normalizeNoteName(value));
     } else {
-      await window.vaultApi.renamePath(promptState.targetPath, value);
+      const nextPath = await window.vaultApi.renamePath(
+        promptState.targetPath,
+        promptState.kind === 'rename-note' ? normalizeNoteName(value) : value
+      );
+
+      if (activeNote && isSamePathOrChildPath(promptState.targetPath, activeNote.path)) {
+        moveActiveNote(replacePathPrefix(promptState.targetPath, nextPath, activeNote.path));
+      }
     }
 
     setPromptState(null);
@@ -291,6 +336,7 @@ function AppBody() {
           <VaultTree nodes={tree} onOpenNote={handleOpenNote} onOpenContextMenu={handleOpenContextMenu} />
           {promptState ? (
             <NamePromptDialog
+              key={`${promptState.kind}:${promptState.targetPath}`}
               title={
                 promptState.kind === 'new-note'
                   ? 'New Note'

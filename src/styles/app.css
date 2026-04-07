@@ -29,9 +29,6 @@ body {
 .sidebar,
 .editor,
 .preview {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
   padding: 24px;
   border-right: 1px solid #d1d5db;
   background: #f9fafb;
@@ -46,13 +43,6 @@ body {
   padding: 16px;
   border: 1px solid #f59e0b;
   background: #fef3c7;
-}
-
-.markdown-editor {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  resize: none;
 }
 
 .name-prompt-dialog {
