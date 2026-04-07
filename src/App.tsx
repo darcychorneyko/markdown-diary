@@ -1,12 +1,28 @@
 import { useEffect, useState } from 'react';
 import type { ExplorerContextMenuRequest } from './lib/types.js';
 import { ConflictDialog } from './components/dialogs/conflict-dialog.js';
+import { NamePromptDialog } from './components/dialogs/name-prompt-dialog.js';
 import { MarkdownEditor } from './components/editor/markdown-editor.js';
 import { MarkdownPreview } from './components/editor/markdown-preview.js';
 import { resolveWikiLink } from './lib/links/link-resolution.js';
 import { Shell } from './components/layout/shell.js';
 import { VaultTree } from './components/sidebar/vault-tree.js';
 import { AppStateProvider, useAppState } from './state/app-state.js';
+
+type PromptState =
+  | null
+  | { kind: 'rename-note'; targetPath: string; initialValue: string }
+  | { kind: 'rename-folder'; targetPath: string; initialValue: string }
+  | { kind: 'new-note'; targetPath: string; initialValue: string }
+  | { kind: 'new-folder'; targetPath: string; initialValue: string };
+
+function normalizeNoteName(name: string) {
+  return name.toLowerCase().endsWith('.md') ? name : `${name}.md`;
+}
+
+function basenameForPrompt(targetPath: string) {
+  return targetPath.split(/[\\/]/).filter(Boolean).at(-1) ?? targetPath;
+}
 
 function AppBody() {
   const {
@@ -20,9 +36,11 @@ function AppBody() {
     updateDraft,
     markSaved,
     markConflict,
-    clearConflict
+    clearConflict,
+    clearActiveNote
   } = useAppState();
   const [openVaultError, setOpenVaultError] = useState<string | null>(null);
+  const [promptState, setPromptState] = useState<PromptState>(null);
 
   async function handleOpenVault() {
     try {
@@ -78,17 +96,26 @@ function AppBody() {
       }
 
       if (event.command === 'new-note') {
-        void handleCreateNote(event.targetPath);
+        setPromptState({ kind: 'new-note', targetPath: event.targetPath, initialValue: 'Untitled' });
         return;
       }
 
       if (event.command === 'new-folder') {
-        void handleCreateFolder(event.targetPath);
+        setPromptState({
+          kind: 'new-folder',
+          targetPath: event.targetPath,
+          initialValue: 'New Folder'
+        });
         return;
       }
 
       if (event.command === 'rename-path') {
-        void handleRenamePath(event.targetPath);
+        const initialValue = basenameForPrompt(event.targetPath);
+        setPromptState({
+          kind: initialValue.toLowerCase().endsWith('.md') ? 'rename-note' : 'rename-folder',
+          targetPath: event.targetPath,
+          initialValue
+        });
         return;
       }
 
@@ -98,7 +125,7 @@ function AppBody() {
     });
 
     return unsubscribe;
-  }, [handleDeletePath, handleCreateFolder, handleCreateNote, handleOpenVault, handleRenamePath]);
+  }, [handleDeletePath, handleOpenVault]);
 
   async function refreshTree(rootPath: string) {
     const nextTree = await window.vaultApi.readVaultTree(rootPath);
@@ -140,29 +167,11 @@ function AppBody() {
     return unsubscribe;
   }, [activeNote, draftContents, markConflict, markSaved, setVault, vaultPath]);
 
-  async function handleCreateNote(parentPath: string) {
-    await window.vaultApi.createNote(parentPath, 'Untitled');
-    if (vaultPath) {
-      await refreshTree(vaultPath);
-    }
-  }
-
-  async function handleCreateFolder(parentPath: string) {
-    await window.vaultApi.createFolder(parentPath, 'New Folder');
-    if (vaultPath) {
-      await refreshTree(vaultPath);
-    }
-  }
-
-  async function handleRenamePath(targetPath: string) {
-    await window.vaultApi.renamePath(targetPath, 'Renamed.md');
-    if (vaultPath) {
-      await refreshTree(vaultPath);
-    }
-  }
-
   async function handleDeletePath(targetPath: string) {
     await window.vaultApi.deletePath(targetPath);
+    if (activeNote?.path === targetPath) {
+      clearActiveNote();
+    }
     if (vaultPath) {
       await refreshTree(vaultPath);
     }
@@ -237,6 +246,27 @@ function AppBody() {
     return rootPath.split(/[\\/]/).filter(Boolean).at(-1) ?? rootPath;
   }
 
+  async function handlePromptConfirm(value: string) {
+    if (!promptState) {
+      return;
+    }
+
+    if (promptState.kind === 'new-note') {
+      await window.vaultApi.createNote(promptState.targetPath, normalizeNoteName(value));
+    } else if (promptState.kind === 'new-folder') {
+      await window.vaultApi.createFolder(promptState.targetPath, value);
+    } else if (promptState.kind === 'rename-note') {
+      await window.vaultApi.renamePath(promptState.targetPath, normalizeNoteName(value));
+    } else {
+      await window.vaultApi.renamePath(promptState.targetPath, value);
+    }
+
+    setPromptState(null);
+    if (vaultPath) {
+      await refreshTree(vaultPath);
+    }
+  }
+
   return (
     <Shell
       sidebar={
@@ -259,6 +289,23 @@ function AppBody() {
           {vaultPath ? <p>{vaultPath}</p> : null}
           {vaultPath && tree.length === 0 ? <p>No markdown notes found in this vault yet.</p> : null}
           <VaultTree nodes={tree} onOpenNote={handleOpenNote} onOpenContextMenu={handleOpenContextMenu} />
+          {promptState ? (
+            <NamePromptDialog
+              title={
+                promptState.kind === 'new-note'
+                  ? 'New Note'
+                  : promptState.kind === 'new-folder'
+                    ? 'New Folder'
+                    : 'Rename'
+              }
+              initialValue={promptState.initialValue}
+              confirmLabel="Confirm"
+              onConfirm={(value) => {
+                void handlePromptConfirm(value);
+              }}
+              onCancel={() => setPromptState(null)}
+            />
+          ) : null}
         </>
       }
       editor={

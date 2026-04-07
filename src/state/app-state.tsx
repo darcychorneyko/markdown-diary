@@ -13,6 +13,7 @@ type AppStateValue = {
   markSaved(note: NoteDocument): void;
   markConflict(): void;
   clearConflict(): void;
+  clearActiveNote(): void;
 };
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -51,6 +52,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setHasConflict(true);
     },
     clearConflict() {
+      setHasConflict(false);
+    },
+    clearActiveNote() {
+      setActiveNote(null);
+      setDraftContents('');
       setHasConflict(false);
     }
   };

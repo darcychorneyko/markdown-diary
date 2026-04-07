@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 import App from '../App';
 
-let menuCommandListener: ((event: { command: 'open-vault' }) => void) | undefined;
+let menuCommandListener: ((event: Window['vaultApi'] extends { onMenuCommand(listener: infer T): () => void } ? T extends (event: infer E) => void ? E : never : never) => void) | undefined;
 
 function createVaultApi(overrides: Partial<Window['vaultApi']> = {}): Window['vaultApi'] {
   return {
@@ -215,6 +215,113 @@ test('executes a delete action from an explorer menu command', async () => {
   await waitFor(() => {
     expect(deletePath).toHaveBeenCalledWith('C:/vault/welcome.md');
   });
+});
+
+test('opens a rename prompt for a folder and submits the entered folder name', async () => {
+  const renamePath = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [
+      { kind: 'folder', name: 'Projects', path: 'C:/vault/Projects', children: [] }
+    ],
+    renamePath
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects' });
+
+  const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+  const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Archives');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
+  await waitFor(() => {
+    expect(renamePath).toHaveBeenCalledWith('C:/vault/Projects', 'Archives');
+  });
+});
+
+test('opens a rename prompt for a note and preserves the markdown extension on submit', async () => {
+  const renamePath = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    renamePath
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md' });
+
+  const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+  const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Renamed');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
+  await waitFor(() => {
+    expect(renamePath).toHaveBeenCalledWith('C:/vault/welcome.md', 'Renamed.md');
+  });
+});
+
+test('opens a new note prompt and appends the markdown extension on submit', async () => {
+  const createNote = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    createNote
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  menuCommandListener?.({ command: 'new-note', targetPath: 'C:/vault' });
+
+  const dialog = await screen.findByRole('dialog', { name: 'New Note' });
+  const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Meeting Notes');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
+  await waitFor(() => {
+    expect(createNote).toHaveBeenCalledWith('C:/vault', 'Meeting Notes.md');
+  });
+});
+
+test('clears the active note when the open note is deleted from the explorer menu command', async () => {
+  const deletePath = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }],
+    readNote: async () => ({
+      path: 'C:/vault/welcome.md',
+      name: 'welcome.md',
+      contents: '# Welcome',
+      updatedAtMs: 1
+    }),
+    deletePath
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+  await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
+
+  expect(await screen.findByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
+
+  menuCommandListener?.({ command: 'delete-path', targetPath: 'C:/vault/welcome.md' });
+
+  await waitFor(() => {
+    expect(deletePath).toHaveBeenCalledWith('C:/vault/welcome.md');
+  });
+  expect(await screen.findByText('Select a note')).toBeInTheDocument();
+  expect(screen.getByText('Preview unavailable')).toBeInTheDocument();
 });
 
 test('loads a note into the editor and saves changes', async () => {
