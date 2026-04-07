@@ -20,14 +20,12 @@ function normalizeNoteName(name: string) {
   return name.toLowerCase().endsWith('.md') ? name : `${name}.md`;
 }
 
-function basenameForPrompt(targetPath: string) {
+function basenameForPrompt(targetPath: string, targetKind: 'note' | 'folder') {
   const basename = targetPath.split(/[\\/]/).filter(Boolean).at(-1) ?? targetPath;
 
-  return basename.toLowerCase().endsWith('.md') ? basename.slice(0, -3) : basename;
-}
-
-function isMarkdownPath(targetPath: string) {
-  return targetPath.toLowerCase().endsWith('.md');
+  return targetKind === 'note' && basename.toLowerCase().endsWith('.md')
+    ? basename.slice(0, -3)
+    : basename;
 }
 
 function normalizePathForComparison(targetPath: string) {
@@ -150,9 +148,9 @@ function AppBody() {
       }
 
       if (event.command === 'rename-path') {
-        const initialValue = basenameForPrompt(event.targetPath);
+        const initialValue = basenameForPrompt(event.targetPath, event.targetKind);
         setPromptState({
-          kind: isMarkdownPath(event.targetPath) ? 'rename-note' : 'rename-folder',
+          kind: event.targetKind === 'note' ? 'rename-note' : 'rename-folder',
           targetPath: event.targetPath,
           initialValue
         });

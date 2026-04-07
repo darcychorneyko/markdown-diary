@@ -231,7 +231,7 @@ test('opens a rename prompt for a folder and submits the entered folder name', a
   render(<App />);
   await triggerOpenVaultCommand();
 
-  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects' });
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects', targetKind: 'folder' });
 
   const dialog = await screen.findByRole('dialog', { name: 'Rename' });
   const input = within(dialog).getByRole('textbox', { name: 'Name' });
@@ -256,7 +256,7 @@ test('opens a rename prompt for a note and preserves the markdown extension on s
   render(<App />);
   await triggerOpenVaultCommand();
 
-  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md' });
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md', targetKind: 'note' });
 
   const dialog = await screen.findByRole('dialog', { name: 'Rename' });
   const input = within(dialog).getByRole('textbox', { name: 'Name' });
@@ -267,6 +267,34 @@ test('opens a rename prompt for a note and preserves the markdown extension on s
 
   await waitFor(() => {
     expect(renamePath).toHaveBeenCalledWith('C:/vault/welcome.md', 'Renamed.md');
+  });
+});
+
+test('treats a folder ending in .md as a folder when the rename target kind is folder', async () => {
+  const renamePath = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    chooseVault: async () => 'C:/vault',
+    readVaultTree: async () => [
+      { kind: 'folder', name: 'Projects.md', path: 'C:/vault/Projects.md', children: [] }
+    ],
+    renamePath
+  });
+
+  render(<App />);
+  await triggerOpenVaultCommand();
+
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects.md', targetKind: 'folder' });
+
+  const dialog = await screen.findByRole('dialog', { name: 'Rename' });
+  const input = within(dialog).getByRole('textbox', { name: 'Name' });
+  expect(input).toHaveValue('Projects.md');
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Archive');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
+  await waitFor(() => {
+    expect(renamePath).toHaveBeenCalledWith('C:/vault/Projects.md', 'Archive');
   });
 });
 
@@ -380,7 +408,7 @@ test('renaming the open note updates the active note path and name', async () =>
   await triggerOpenVaultCommand();
   await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
 
-  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md' });
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md', targetKind: 'note' });
 
   const dialog = await screen.findByRole('dialog', { name: 'Rename' });
   const input = within(dialog).getByRole('textbox', { name: 'Name' });
@@ -422,7 +450,7 @@ test('renaming a parent folder updates the active note path', async () => {
   await triggerOpenVaultCommand();
   await userEvent.click(await screen.findByRole('button', { name: 'welcome' }));
 
-  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects' });
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/Projects', targetKind: 'folder' });
 
   const dialog = await screen.findByRole('dialog', { name: 'Rename' });
   const input = within(dialog).getByRole('textbox', { name: 'Name' });
@@ -452,7 +480,7 @@ test('switching prompts resets the dialog input to the new prompt values', async
   await userEvent.clear(firstInput);
   await userEvent.type(firstInput, 'Draft Name');
 
-  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md' });
+  menuCommandListener?.({ command: 'rename-path', targetPath: 'C:/vault/welcome.md', targetKind: 'note' });
 
   const secondDialog = await screen.findByRole('dialog', { name: 'Rename' });
   expect(within(secondDialog).getByRole('textbox', { name: 'Name' })).toHaveValue('welcome');

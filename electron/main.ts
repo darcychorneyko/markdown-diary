@@ -84,7 +84,12 @@ function buildExplorerContextMenuTemplate(request: ExplorerContextMenuRequest) {
       },
       {
         label: 'Rename',
-        click: () => broadcastMenuCommand({ command: 'rename-path', targetPath: request.targetPath })
+        click: () =>
+          broadcastMenuCommand({
+            command: 'rename-path',
+            targetPath: request.targetPath,
+            targetKind: 'folder'
+          })
       },
       {
         label: 'Delete',
@@ -96,7 +101,12 @@ function buildExplorerContextMenuTemplate(request: ExplorerContextMenuRequest) {
   return [
     {
       label: 'Rename',
-      click: () => broadcastMenuCommand({ command: 'rename-path', targetPath: request.targetPath })
+      click: () =>
+        broadcastMenuCommand({
+          command: 'rename-path',
+          targetPath: request.targetPath,
+          targetKind: 'note'
+        })
     },
     {
       label: 'Delete',

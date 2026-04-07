@@ -38,6 +38,7 @@ export type MenuCommandEvent =
   | {
       command: 'rename-path';
       targetPath: string;
+      targetKind: 'note' | 'folder';
     }
   | {
       command: 'delete-path';
