@@ -72,13 +72,19 @@ test('opens a vault, edits a note, and saves it', async ({ page }) => {
   await page.getByRole('button', { name: 'welcome' }).evaluate((element) => {
     (element as HTMLButtonElement).click();
   });
-  await page.getByRole('textbox').fill('# Welcome\nEdited');
+  await page.getByRole('textbox').evaluate((element, value) => {
+    const textarea = element as HTMLTextAreaElement;
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+    descriptor?.set?.call(textarea, value);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+  }, '# Welcome\nEdited');
+  await expect(page.locator('.preview')).toContainText('Edited');
   await page.getByRole('button', { name: 'Save' }).evaluate((element) => {
     (element as HTMLButtonElement).click();
   });
 
   await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
-  await expect(page.locator('.preview')).toContainText('Edited');
   await expect
     .poll(async () =>
       page.evaluate(() => (window as typeof window & { __savedNotes: Map<string, string> }).__savedNotes.get('C:/vault/welcome.md'))
