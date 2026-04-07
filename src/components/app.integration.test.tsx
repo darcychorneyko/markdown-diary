@@ -142,6 +142,67 @@ test('requests a native context menu when right-clicking the vault root', async 
   });
 });
 
+test('renders a nested note and opens it when clicked', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [
+      {
+        kind: 'folder',
+        name: 'Projects',
+        path: 'C:/vault/Projects',
+        children: [
+          { kind: 'note', name: 'nested.md', path: 'C:/vault/Projects/nested.md' }
+        ]
+      }
+    ],
+    readNote: async (notePath: string) => ({
+      path: notePath,
+      name: 'nested.md',
+      contents: '# Nested Note',
+      updatedAtMs: 1
+    })
+  });
+
+  render(<App />);
+
+  expect(await screen.findByRole('button', { name: 'nested' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'nested' }));
+
+  expect(await screen.findByRole('heading', { name: 'Nested Note' })).toBeInTheDocument();
+});
+
+test('requests a native context menu when right-clicking a nested folder', async () => {
+  const showExplorerContextMenu = vi.fn();
+
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [
+      {
+        kind: 'folder',
+        name: 'Projects',
+        path: 'C:/vault/Projects',
+        children: [
+          { kind: 'folder', name: 'Archive', path: 'C:/vault/Projects/Archive', children: [] }
+        ]
+      }
+    ],
+    showExplorerContextMenu
+  });
+
+  render(<App />);
+  await userEvent.pointer([
+    {
+      target: await screen.findByRole('button', { name: 'Archive' }),
+      keys: '[MouseRight]'
+    }
+  ]);
+
+  expect(showExplorerContextMenu).toHaveBeenCalledWith({
+    kind: 'folder',
+    targetPath: 'C:/vault/Projects/Archive'
+  });
+});
+
 test('restores the last used vault on startup', async () => {
   window.vaultApi = createVaultApi({
     getLastVaultPath: async () => 'C:/vault',
