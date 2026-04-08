@@ -203,6 +203,56 @@ test('requests a native context menu when right-clicking a nested folder', async
   });
 });
 
+test('collapses and expands the vault sidebar from the top toggle', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+
+  const toggle = screen.getByRole('button', { name: 'Collapse vault sidebar' });
+  const sidebar = screen.getByRole('complementary', { name: 'Vault explorer' });
+  const shell = screen.getByRole('main', { name: /markdown vault workspace/i });
+
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(sidebar).not.toHaveClass('sidebar-collapsed');
+  expect(shell).not.toHaveClass('app-shell-sidebar-collapsed');
+
+  await userEvent.click(toggle);
+
+  expect(screen.getByRole('button', { name: 'Expand vault sidebar' })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+  expect(sidebar).toHaveClass('sidebar-collapsed');
+  expect(shell).toHaveClass('app-shell-sidebar-collapsed');
+});
+
+test('collapses and expands folder contents from the explorer disclosure control', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [
+      {
+        kind: 'folder',
+        name: 'Projects',
+        path: 'C:/vault/Projects',
+        children: [{ kind: 'note', name: 'nested.md', path: 'C:/vault/Projects/nested.md' }]
+      }
+    ]
+  });
+
+  render(<App />);
+
+  const toggle = await screen.findByRole('button', { name: 'Collapse folder Projects' });
+  expect(screen.getByRole('button', { name: 'nested' })).toBeInTheDocument();
+
+  await userEvent.click(toggle);
+
+  expect(screen.getByRole('button', { name: 'Expand folder Projects' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'nested' })).not.toBeInTheDocument();
+});
+
 test('restores the last used vault on startup', async () => {
   window.vaultApi = createVaultApi({
     getLastVaultPath: async () => 'C:/vault',
