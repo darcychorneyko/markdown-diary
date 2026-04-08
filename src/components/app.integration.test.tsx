@@ -1,10 +1,71 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterAll, beforeAll, afterEach, expect, test, vi } from 'vitest';
 import App from '../App';
 
 let menuCommandListener: ((event: Window['vaultApi'] extends { onMenuCommand(listener: infer T): () => void } ? T extends (event: infer E) => void ? E : never : never) => void) | undefined;
+
+class TestPointerEvent extends MouseEvent {
+  pointerId: number;
+  width: number;
+  height: number;
+  pressure: number;
+  tangentialPressure: number;
+  tiltX: number;
+  tiltY: number;
+  twist: number;
+  pointerType: string;
+  isPrimary: boolean;
+
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 1;
+    this.width = init.width ?? 1;
+    this.height = init.height ?? 1;
+    this.pressure = init.pressure ?? 0;
+    this.tangentialPressure = init.tangentialPressure ?? 0;
+    this.tiltX = init.tiltX ?? 0;
+    this.tiltY = init.tiltY ?? 0;
+    this.twist = init.twist ?? 0;
+    this.pointerType = init.pointerType ?? 'mouse';
+    this.isPrimary = init.isPrimary ?? true;
+  }
+}
+
+const originalPointerEvent = globalThis.PointerEvent;
+
+beforeAll(() => {
+  Object.defineProperty(window, 'PointerEvent', {
+    configurable: true,
+    writable: true,
+    value: TestPointerEvent
+  });
+  Object.defineProperty(globalThis, 'PointerEvent', {
+    configurable: true,
+    writable: true,
+    value: TestPointerEvent
+  });
+});
+
+afterAll(() => {
+  if (originalPointerEvent) {
+    Object.defineProperty(window, 'PointerEvent', {
+      configurable: true,
+      writable: true,
+      value: originalPointerEvent
+    });
+    Object.defineProperty(globalThis, 'PointerEvent', {
+      configurable: true,
+      writable: true,
+      value: originalPointerEvent
+    });
+    return;
+  }
+
+  delete (window as Window & { PointerEvent?: typeof PointerEvent }).PointerEvent;
+  delete (globalThis as typeof globalThis & { PointerEvent?: typeof PointerEvent }).PointerEvent;
+});
 
 function createVaultApi(overrides: Partial<Window['vaultApi']> = {}): Window['vaultApi'] {
   return {
@@ -52,6 +113,19 @@ async function triggerOpenVaultCommand() {
   });
 
   menuCommandListener?.({ command: 'open-vault' });
+}
+
+function getGridTracks(shell: HTMLElement) {
+  return shell.style.gridTemplateColumns.split(/\s+/).filter(Boolean);
+}
+
+function getPixelWidth(track: string | undefined) {
+  if (!track) {
+    return null;
+  }
+
+  const match = track.match(/^(-?\d+(?:\.\d+)?)px$/);
+  return match ? Number(match[1]) : null;
 }
 
 afterEach(() => {
@@ -227,6 +301,130 @@ test('collapses and expands the vault sidebar from the top toggle', async () => 
   );
   expect(sidebar).toHaveClass('sidebar-collapsed');
   expect(shell).toHaveClass('app-shell-sidebar-collapsed');
+});
+
+test('collapsing the vault redistributes its width equally to editor and preview', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+
+  const shell = screen.getByRole('main', { name: /markdown vault workspace/i });
+  const toggle = screen.getByRole('button', { name: 'Collapse vault sidebar' });
+
+  await userEvent.click(toggle);
+
+  const afterTracks = getGridTracks(shell);
+
+  expect(afterTracks).toHaveLength(5);
+  expect(getPixelWidth(afterTracks[0])).toBe(0);
+  expect(getPixelWidth(afterTracks[1])).toBe(0);
+  expect(afterTracks[2]).toBe(afterTracks[4]);
+});
+
+test('expanding the vault restores the editor and preview widths after a resize', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+
+  const shell = screen.getByRole('main', { name: /markdown vault workspace/i });
+  const collapse = screen.getByRole('button', { name: 'Collapse vault sidebar' });
+  const rightSplitter = screen.getByRole('separator', { name: 'Resize editor and preview' });
+  const initialTracks = getGridTracks(shell);
+  const initialVaultWidth = getPixelWidth(initialTracks[0]);
+
+  fireEvent.pointerDown(rightSplitter, { clientX: 700 });
+  fireEvent.pointerMove(window, { clientX: 760 });
+  fireEvent.pointerUp(window);
+
+  const resizedTracks = getGridTracks(shell);
+  const resizedEditorWidth = getPixelWidth(resizedTracks[2]);
+  const resizedPreviewWidth = getPixelWidth(resizedTracks[4]);
+
+  expect(resizedEditorWidth).not.toBeNull();
+  expect(resizedPreviewWidth).not.toBeNull();
+  expect(resizedEditorWidth).toBeGreaterThan(resizedPreviewWidth ?? 0);
+
+  await userEvent.click(collapse);
+  const collapsedTracks = getGridTracks(shell);
+  const collapsedVaultWidth = getPixelWidth(collapsedTracks[0]);
+  await userEvent.click(screen.getByRole('button', { name: 'Expand vault sidebar' }));
+
+  const expandedTracks = getGridTracks(shell);
+  const expandedVaultWidth = getPixelWidth(expandedTracks[0]);
+  const collapsedEditorWidth = getPixelWidth(collapsedTracks[2]);
+  const collapsedPreviewWidth = getPixelWidth(collapsedTracks[4]);
+  const expandedEditorWidth = getPixelWidth(expandedTracks[2]);
+  const expandedPreviewWidth = getPixelWidth(expandedTracks[4]);
+
+  expect(initialVaultWidth).not.toBeNull();
+  expect(initialVaultWidth).toBeGreaterThan(0);
+  expect(collapsedVaultWidth).toBe(0);
+  expect(expandedVaultWidth).not.toBeNull();
+  expect(expandedVaultWidth).toBe(initialVaultWidth);
+  expect(collapsedEditorWidth).not.toBeNull();
+  expect(collapsedPreviewWidth).not.toBeNull();
+  expect(expandedEditorWidth).not.toBeNull();
+  expect(expandedPreviewWidth).not.toBeNull();
+  expect(expandedEditorWidth).toBe(resizedEditorWidth);
+  expect(expandedPreviewWidth).toBe(resizedPreviewWidth);
+  expect(expandedEditorWidth - collapsedEditorWidth).toBe(expandedPreviewWidth - collapsedPreviewWidth);
+});
+
+test('dragging the left splitter changes only the vault and editor widths', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+
+  const shell = screen.getByRole('main', { name: /markdown vault workspace/i });
+  const beforeTracks = getGridTracks(shell);
+  const leftSplitter = screen.getByRole('separator', { name: 'Resize vault and editor' });
+
+  fireEvent.pointerDown(leftSplitter, { clientX: 280 });
+  fireEvent.pointerMove(window, { clientX: 340 });
+  fireEvent.pointerUp(window);
+
+  const afterTracks = getGridTracks(shell);
+
+  expect(afterTracks[0]).not.toBe(beforeTracks[0]);
+  expect(afterTracks[2]).not.toBe(beforeTracks[2]);
+  expect(afterTracks[4]).toBe(beforeTracks[4]);
+});
+
+test('dragging the right splitter grows the editor while shrinking the preview', async () => {
+  window.vaultApi = createVaultApi({
+    getLastVaultPath: async () => 'C:/vault',
+    readVaultTree: async () => [{ kind: 'note', name: 'welcome.md', path: 'C:/vault/welcome.md' }]
+  });
+
+  render(<App />);
+
+  const shell = screen.getByRole('main', { name: /markdown vault workspace/i });
+  const beforeTracks = getGridTracks(shell);
+  const rightSplitter = screen.getByRole('separator', { name: 'Resize editor and preview' });
+
+  fireEvent.pointerDown(rightSplitter, { clientX: 700 });
+  fireEvent.pointerMove(window, { clientX: 760 });
+  fireEvent.pointerUp(window);
+
+  const afterTracks = getGridTracks(shell);
+  const editorWidth = getPixelWidth(afterTracks[2]);
+  const previewWidth = getPixelWidth(afterTracks[4]);
+
+  expect(afterTracks[0]).toBe(beforeTracks[0]);
+  expect(afterTracks[2]).not.toBe(beforeTracks[2]);
+  expect(afterTracks[4]).not.toBe(beforeTracks[4]);
+  expect(editorWidth).not.toBeNull();
+  expect(previewWidth).not.toBeNull();
+  expect(editorWidth).toBeGreaterThan(previewWidth ?? 0);
 });
 
 test('collapses and expands folder contents from the explorer disclosure control', async () => {
